@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin - Sub Link Manager</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>📡 Sub Link Manager</h1>
+  <a href="/logout" class="logout">Logout</a>
+</header>
+
+<main>
+  <!-- Master Links -->
+  <section class="card">
+    <h2>Master Subscription Links</h2>
+    <form method="post" action="/admin/masters/add" class="inline-form">
+      <input name="name" placeholder="Name (e.g. My Pool)" required>
+      <input name="url" placeholder="https://your-master-sub-link.com/..." required style="flex:2">
+      <button type="submit">+ Add</button>
+    </form>
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>URL</th><th>Added</th><th></th></tr></thead>
+      <tbody>
+      {% for m in masters %}
+        <tr>
+          <td>{{ m.id }}</td>
+          <td>{{ m.name }}</td>
+          <td class="truncate" title="{{ m.url }}">{{ m.url[:50] }}...</td>
+          <td>{{ m.created_at[:10] }}</td>
+          <td>
+            <form method="post" action="/admin/masters/{{ m.id }}/delete" onsubmit="return confirm('Delete master link? All its users will be removed.')">
+              <button class="danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Add User -->
+  <section class="card">
+    <h2>Create User Sub Link</h2>
+    {% if masters %}
+    <form method="post" action="/admin/users/add" class="inline-form">
+      <input name="name" placeholder="User name" required>
+      <select name="master_id" required>
+        {% for m in masters %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+      </select>
+      <select name="duration_days" required>
+        <option value="7">7 days</option>
+        <option value="30" selected>1 month</option>
+        <option value="60">2 months</option>
+        <option value="90">3 months</option>
+        <option value="180">6 months</option>
+        <option value="365">1 year</option>
+      </select>
+      <input name="note" placeholder="Note (optional)">
+      <button type="submit">+ Generate</button>
+    </form>
+    {% else %}
+    <p class="muted">⚠️ Master link အရင်ထည့်ပါ</p>
+    {% endif %}
+  </section>
+
+  <!-- Users -->
+  <section class="card">
+    <h2>Users ({{ users|length }})</h2>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Master</th><th>Sub Link</th><th>Expires</th><th>Status</th><th>Last Used</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+        {% set exp = u.expires_at|replace('T',' ') %}
+        {% set is_expired = (u.expires_at < now.isoformat()) %}
+        <tr class="{% if is_expired %}expired{% endif %}">
+          <td>
+            <strong>{{ u.name }}</strong>
+            {% if u.note %}<br><small class="muted">{{ u.note }}</small>{% endif %}
+          </td>
+          <td>{{ u.master_name }}</td>
+          <td>
+            <div class="sub-link">
+              <input readonly value="{{ base_url }}/sub/{{ u.token }}" onclick="this.select();navigator.clipboard.writeText(this.value);this.nextElementSibling.textContent='✓'">
+              <span class="copy-hint">📋</span>
+            </div>
+          </td>
+          <td>{{ exp[:16] }}<br><small class="muted">UTC</small></td>
+          <td>
+            {% if is_expired %}
+              <span class="badge red">EXPIRED</span>
+            {% else %}
+              <span class="badge green">ACTIVE</span>
+            {% endif %}
+          </td>
+          <td>{% if u.last_used_at %}{{ u.last_used_at[:10] }}{% else %}<span class="muted">never</span>{% endif %}</td>
+          <td class="actions">
+            <form method="post" action="/admin/users/{{ u.id }}/extend" class="inline">
+              <select name="days">
+                <option value="7">+7d</option>
+                <option value="30" selected>+30d</option>
+                <option value="60">+60d</option>
+                <option value="90">+90d</option>
+              </select>
+              <button>Extend</button>
+            </form>
+            <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline" onsubmit="return confirm('Delete user?')">
+              <button class="danger">×</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>
